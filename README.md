@@ -1,2 +1,9 @@
-# Linebot-on-CloudFunction
-A sample shows that how to deploy a linebot on GCP (Cloud Function)
+# Deploy a Linebot on GCP (Cloud Function)
+
+## Steps
+1. Set env vars :
+    - LINE_CHANNEL_SECRET
+    - LINE_CHANNEL_ACCESS_TOKEN
+2. Deploy codes, and don't forget to set "callback" as the entry.
+3. Go to the permitions tab.
+4. Add a new permition with "allUsers" as Role, "Cloud Functions Invoker" as policy.
