@@ -1,6 +1,6 @@
 # Deploy a Linebot on GCP (Cloud Function)
 
-## Steps
+## Init
 1. Set env vars :
     - LINE_CHANNEL_SECRET
     - LINE_CHANNEL_ACCESS_TOKEN
