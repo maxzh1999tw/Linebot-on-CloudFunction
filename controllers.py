@@ -8,61 +8,61 @@ from views import View, ViewFactory
 
 
 class BaseController:
-    def __init__(self, lineBotApi: LineBotApi, db: Client, userService=None):
+    def __init__(self, lineBotApi: LineBotApi, db: Client):
         self._db = db
-        self.lineBotApi = lineBotApi
-        self.userService = UserService(db) if userService == None else userService
+        self._lineBotApi = lineBotApi
 
-    def recordAndReply(self, view: View):
-        self.lineBotApi.reply_message(self.event.reply_token, view.message)
-        self.userService.setLastMessageId(self.userId, view.messageId)
+    def _getUserName(self, userId):
+        return self._lineBotApi.get_profile(userId).display_name
 
     def handleEvent(self, event):
-        self.event = event
-        self.userId = event.source.user_id
+        self._event = event
+        self._userId = event.source.user_id
+        self._userService = UserService(self._db, self._userId)
 
-    def removeUserData(self):
-        self.userService.removeUserData(self.userId)
+    def _recordAndReply(self, view: View):
+        self._lineBotApi.reply_message(self._event.reply_token, view.message)
+        self._userService.lastMessageId = view.messageId
 
-    def getUserName(self, userId):
-        return self.lineBotApi.get_profile(userId).display_name
+    def _removeUserData(self):
+        self._userService.removeUserData(self._userId)
+
 
 class FollowController(BaseController):
-    def __init__(self, lineBotApi: LineBotApi, db: Client, userService=None):
-        super().__init__(lineBotApi, db, userService)
+    def __init__(self, lineBotApi: LineBotApi, db: Client):
+        super().__init__(lineBotApi, db)
 
     def handleEvent(self, event):
         super().handleEvent(event)
         if isinstance(event, FollowEvent):
-            self.recordAndReply(ViewFactory.greeting())
+            self._recordAndReply(ViewFactory.greeting())
         elif isinstance(event, UnfollowEvent):
-            self.removeUserData()
+            self._removeUserData()
 
 class DefaultController(BaseController):
-    def __init__(self, lineBotApi: LineBotApi, db: Client, userService=None):
-        super().__init__(lineBotApi, db, userService)
+    def __init__(self, lineBotApi: LineBotApi, db: Client):
+        super().__init__(lineBotApi, db)
 
     def handleEvent(self, event):
         super().handleEvent(event)
 
         if isinstance(event, PostbackEvent):
             data = PostbackData.parse(event.postback.data)
-            if not self.userService.isLastMessage(self.userId ,data.messageId): return
+            if self._userService.lastMessage != data.messageId: return
 
             elif data.id == PostbackDataId.Hello:
-                self.recordAndReply(ViewFactory.askName())
-                self.userService.setContext(self.userId, UserContext(UserContextId.AskName))
+                self._recordAndReply(ViewFactory.askName())
+                self._userService.context = UserContext(UserContextId.AskName)
                 return
 
         elif isinstance(event, MessageEvent):
-            userContext = self.userService.getContext(self.userId)
-            if userContext != None:
-                if userContext.id == UserContextId.AskName:
+            if self._userService.context != None:
+                if self._userService.context.id == UserContextId.AskName:
                     if isinstance(event.message, TextMessage):
-                        self.recordAndReply(ViewFactory.askNameReply(event.message.text, self.getUserName(self.userId)))
-                        self.userService.setContext(self.userId, None)
+                        self._recordAndReply(ViewFactory.askNameReply(event.message.text, self._getUserName(self._userId)))
+                        self._userService.context = None
                     else:
-                        self.recordAndReply(ViewFactory.askName())
+                        self._recordAndReply(ViewFactory.askName())
                     return
 
-        self.recordAndReply(ViewFactory.greeting())
+        self._recordAndReply(ViewFactory.greeting())

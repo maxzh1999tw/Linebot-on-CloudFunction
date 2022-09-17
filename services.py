@@ -1,37 +1,50 @@
-from google.cloud.firestore import Client
+from google.cloud.firestore import Client, DocumentReference
 
 from models import UserContext
 
+def tryGetDocField(docRef: DocumentReference, field: str, default = None):
+        doc = docRef.get()
+        if doc.exists:
+            docDict = doc.to_dict()
+            return docDict[field] if field in docDict else default
+        return default
+
 class UserService:
-
-    def __init__(self, db: Client):
+    def __init__(self, db: Client, userId):
         self._db = db
-        self._collection = self._db.collection("User")
+        self._userId = userId
+        self._document = self._db.collection("User").document(userId)
+        self._lastMessageId = None
+        self._context = None
 
-    def setLastMessageId(self, userId: str, messageId: str):
-        self._collection.document(userId).set({
+    def removeUserData(self):
+        self._document.delete()
+
+    @property
+    def lastMessage(self):
+        if self._lastMessageId != None:
+            return self._lastMessageId
+        else:
+            return tryGetDocField(self._document, "LastMessageId")
+
+    @lastMessage.setter
+    def lastMessageId(self, messageId: str):
+        self._lastMessageId = messageId
+        self._document.set({
             "LastMessageId": messageId
         }, merge=True)
+    
+    @property
+    def context(self):
+        if self._context != None:
+            return self._context
+        else:
+            contextField = tryGetDocField(self._document, "Context")
+            return UserContext.parse(contextField) if contextField != None else None
 
-    def isLastMessage(self, userId: str, messageId: str) -> bool:
-        doc = self._collection.document(userId).get()
-        if not doc.exists:
-            return False
-        return messageId == doc.get("LastMessageId")
-
-    def removeUserData(self, userId):
-        doc = self._collection.document(userId)
-        if doc.get().exists:
-            doc.delete()
-
-    def getContext(self, userId: str):
-        doc = self._collection.document(userId).get()
-        if not doc.exists:
-            return None
-        dict = doc.to_dict()
-        return UserContext.parse(dict["Context"]) if "Context" in dict else None
-
-    def setContext(self, userId: str, context: UserContext):
-        self._collection.document(userId).set({
+    @context.setter
+    def context(self, context: UserContext):
+        self._context = context
+        self._document.set({
             "Context": dict(context) if context != None else None
         }, merge = True)

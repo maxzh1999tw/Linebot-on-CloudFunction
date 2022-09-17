@@ -11,8 +11,7 @@ class PostbackData:
             sort_keys=True, indent=4, separators=(',', ':')).replace("\"", "\\\"").replace("\n","")
 
     def parse(value: str):
-        data = json.loads(value.replace("\\\"", "\""))
-        return PostbackData(data["id"], data["messageId"], data["params"])
+        return json.loads(value.replace("\\\"", "\""), object_hook=lambda d: PostbackData(**d))
 
 class PostbackDataId:
     Hello = "Hello"
@@ -27,7 +26,7 @@ class UserContext:
             yield key, getattr(self, key)
     
     def parse(obj: dict):
-        return UserContext(obj["id"], obj["params"]) if obj != None else None
+        return UserContext(**obj) if obj != None else None
 
 class UserContextId:
     AskName = "AskName"
